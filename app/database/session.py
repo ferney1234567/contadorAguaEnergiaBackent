@@ -14,18 +14,19 @@ load_dotenv(BASE_DIR / ".env")
 DB_USER = os.getenv("DB_USER")
 DB_PASSWORD = os.getenv("DB_PASSWORD") or ""
 DB_HOST = os.getenv("DB_HOST")
+DB_PORT = os.getenv("DB_PORT") or "5432"
 DB_NAME = os.getenv("DB_NAME")
 
-print("DB CONFIG →", DB_USER, DB_PASSWORD, DB_HOST, DB_NAME)
+print("DB CONFIG →", DB_USER, DB_PASSWORD, DB_HOST, DB_PORT, DB_NAME)
 
 if not all([DB_USER, DB_HOST, DB_NAME]):
     raise RuntimeError("❌ Variables del .env no cargadas correctamente")
 
 # ==================================================
-# CADENA DE CONEXIÓN MYSQL (LOCAL)
+# CADENA DE CONEXIÓN POSTGRESQL
 # ==================================================
 DATABASE_URL = (
-    f"mysql+pymysql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}/{DB_NAME}"
+    f"postgresql+psycopg2://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
 )
 
 # ==================================================
@@ -33,7 +34,7 @@ DATABASE_URL = (
 # ==================================================
 engine = create_engine(
     DATABASE_URL,
-    echo=True,          # 🔍 logs SQL en local
+    echo=True,          # 🔍 muestra SQL en consola (útil en desarrollo)
     pool_pre_ping=True
 )
 
