@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.database.session import engine, Base
-from app.routers import agua, energia, lecturas, metas, ocr
+from app.routers import agua, energia, lecturas, metas
 
 app = FastAPI(
     title="Backend Contadores",
@@ -33,7 +33,7 @@ app.include_router(agua.router)
 app.include_router(energia.router)
 app.include_router(lecturas.router)
 app.include_router(metas.router)
-app.include_router(ocr.router)
+
 
 @app.get("/", tags=["Root"])
 def read_root():
