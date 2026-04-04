@@ -10,7 +10,7 @@ router = APIRouter(prefix="/resmas", tags=["Resmas"])
 # ✅ CREAR REGISTRO
 # =======================
 @router.post("/")
-def crear_resma(data: dict = Body(...), db: Session = Depends(get_db)):
+def crear_o_actualizar_resma(data: dict = Body(...), db: Session = Depends(get_db)):
 
     area_id = data.get("area_id")
     anio = data.get("anio")
@@ -19,16 +19,23 @@ def crear_resma(data: dict = Body(...), db: Session = Depends(get_db)):
     if not area_id or not anio or not mes:
         raise HTTPException(400, "Faltan datos obligatorios")
 
-    # 🔥 EVITAR DUPLICADOS (MISMA AREA + MES + AÑO)
-    existe = db.query(Resmas).filter(
+    registro = db.query(Resmas).filter(
         Resmas.area_id == area_id,
         Resmas.anio == anio,
         Resmas.mes == mes
     ).first()
 
-    if existe:
-        raise HTTPException(400, "Ya existe registro para esta área en ese mes")
+    # 🔥 SI YA EXISTE → ACTUALIZA
+    if registro:
+        registro.cantidad = data.get("cantidad", registro.cantidad)
+        registro.cumple = data.get("cumple", registro.cumple)
 
+        db.commit()
+        db.refresh(registro)
+
+        return {"mensaje": "Registro actualizado"}
+
+    # 🔥 SI NO EXISTE → CREA
     nuevo = Resmas(
         area_id=area_id,
         anio=anio,
@@ -41,15 +48,28 @@ def crear_resma(data: dict = Body(...), db: Session = Depends(get_db)):
     db.commit()
     db.refresh(nuevo)
 
-    return {"mensaje": "Registro creado correctamente"}
-
+    return {"mensaje": "Registro creado"}
 
 # =======================
 # 📄 LISTAR
 # =======================
+from fastapi import Query
+
+# =======================
+# 📄 LISTAR (FILTRADO POR AÑO)
+# =======================
 @router.get("/")
-def listar_resmas(db: Session = Depends(get_db)):
-    data = db.query(Resmas).all()
+def listar_resmas(
+    anio: int = Query(None),
+    db: Session = Depends(get_db)
+):
+    query = db.query(Resmas)
+
+    # 🔥 FILTRO POR AÑO (CLAVE)
+    if anio:
+        query = query.filter(Resmas.anio == anio)
+
+    data = query.all()
 
     return [
         {
@@ -62,6 +82,7 @@ def listar_resmas(db: Session = Depends(get_db)):
         }
         for r in data
     ]
+
 
 
 # =======================

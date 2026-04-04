@@ -162,6 +162,57 @@ def obtener_inspeccion(id: int, db: Session = Depends(get_db)):
         "total": r.total
     }
 
+# ======================================================
+# ✏️ ACTUALIZAR INSPECCIÓN
+# ======================================================
+@router.put("/")
+def actualizar_inspeccion(data: dict = Body(...), db: Session = Depends(get_db)):
+
+    id = data.get("id")
+
+    if not id:
+        raise HTTPException(status_code=400, detail="Falta id")
+
+    registro = db.query(InspeccionSanitaria).filter(
+        InspeccionSanitaria.id == id
+    ).first()
+
+    if not registro:
+        raise HTTPException(status_code=404, detail="No existe la inspección")
+
+    # 🔥 ACTUALIZAR CAMPOS
+    registro.fecha = data.get("fecha", registro.fecha)
+    registro.responsable = data.get("responsable", registro.responsable)
+    registro.area_id = data.get("area_id", registro.area_id)
+
+    registro.sanitarios_c = int(data.get("sanitarios_c") or 0)
+    registro.sanitarios_nc = int(data.get("sanitarios_nc") or 0)
+
+    registro.orinales_c = int(data.get("orinales_c") or 0)
+    registro.orinales_nc = int(data.get("orinales_nc") or 0)
+
+    registro.duchas_c = int(data.get("duchas_c") or 0)
+    registro.duchas_nc = int(data.get("duchas_nc") or 0)
+
+    registro.lavamanos_c = int(data.get("lavamanos_c") or 0)
+    registro.lavamanos_nc = int(data.get("lavamanos_nc") or 0)
+
+    registro.llaves_c = int(data.get("llaves_c") or 0)
+    registro.llaves_nc = int(data.get("llaves_nc") or 0)
+
+    registro.observacion = data.get("observacion", "")
+
+    # 🔥 recalcular total
+    registro.total = calcular_total(data)
+
+    db.commit()
+    db.refresh(registro)
+
+    return {
+        "mensaje": "Inspección actualizada correctamente",
+        "id": registro.id,
+        "total": registro.total
+    }
 
 # ======================================================
 # ❌ ELIMINAR

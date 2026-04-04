@@ -164,9 +164,10 @@ def obtener_inspeccion(id: int, db: Session = Depends(get_db)):
         "total": r.total
     }
 
-    
-
-@router.put("/")
+    # ======================================================
+# ✏️ ACTUALIZAR INSPECCIÓN ENERGÍA (FORMA CORRECTA)
+# ======================================================
+@router.put("/{id}")
 def actualizar_inspeccion(
     id: int,
     data: dict = Body(...),
@@ -182,10 +183,26 @@ def actualizar_inspeccion(
             detail="No existe la inspección"
         )
 
-    for key, value in data.items():
-        setattr(registro, key, value)
+    # 🔥 ACTUALIZAR CAMPOS UNO A UNO (MEJOR QUE setattr)
+    registro.fecha = data.get("fecha", registro.fecha)
+    registro.responsable = data.get("responsable", registro.responsable)
+    registro.area_id = data.get("area_id", registro.area_id)
 
-    # 🔥 RECALCULAR TOTAL
+    registro.bombillas_c = int(data.get("bombillas_c") or 0)
+    registro.bombillas_nc = int(data.get("bombillas_nc") or 0)
+
+    registro.reflectores_c = int(data.get("reflectores_c") or 0)
+    registro.reflectores_nc = int(data.get("reflectores_nc") or 0)
+
+    registro.lamparas_c = int(data.get("lamparas_c") or 0)
+    registro.lamparas_nc = int(data.get("lamparas_nc") or 0)
+
+    registro.aires_c = int(data.get("aires_c") or 0)
+    registro.aires_nc = int(data.get("aires_nc") or 0)
+
+    registro.observacion = data.get("observacion", "")
+
+    # 🔥 recalcular total
     registro.total = calcular_total(data)
 
     db.commit()
@@ -196,6 +213,7 @@ def actualizar_inspeccion(
         "id": registro.id,
         "total": registro.total
     }
+
 
 
 # ======================================================
