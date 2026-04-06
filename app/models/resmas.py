@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, DateTime, Boolean, ForeignKey
+from sqlalchemy import Column, Integer, DateTime, ForeignKey
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 from app.database.session import Base
@@ -16,7 +16,6 @@ class Resmas(Base):
     mes = Column(Integer, nullable=False)
 
     cantidad = Column(Integer, default=0)
-    cumple = Column(Boolean, default=True)
 
     created_at = Column(
         DateTime(timezone=True),

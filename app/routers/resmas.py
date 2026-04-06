@@ -28,7 +28,6 @@ def crear_o_actualizar_resma(data: dict = Body(...), db: Session = Depends(get_d
     # 🔥 SI YA EXISTE → ACTUALIZA
     if registro:
         registro.cantidad = data.get("cantidad", registro.cantidad)
-        registro.cumple = data.get("cumple", registro.cumple)
 
         db.commit()
         db.refresh(registro)
@@ -41,7 +40,6 @@ def crear_o_actualizar_resma(data: dict = Body(...), db: Session = Depends(get_d
         anio=anio,
         mes=mes,
         cantidad=data.get("cantidad", 0),
-        cumple=data.get("cumple", True)
     )
 
     db.add(nuevo)
@@ -78,7 +76,6 @@ def listar_resmas(
             "anio": r.anio,
             "mes": r.mes,
             "cantidad": r.cantidad,
-            "cumple": r.cumple
         }
         for r in data
     ]
