@@ -1,5 +1,6 @@
-from sqlalchemy import Column, Integer, Float, Boolean, DateTime, String
+from sqlalchemy import Column, Integer, Float, Boolean, DateTime, ForeignKey, UniqueConstraint
 from sqlalchemy.sql import func
+from sqlalchemy.orm import relationship
 from app.database.session import Base
 
 
@@ -8,25 +9,23 @@ class ComparativoEnergia(Base):
 
     id = Column(Integer, primary_key=True, index=True)
 
-    # Datos de la ubicación
-    nombre = Column(String(150), nullable=False)
-    ubicacion = Column(String(150), nullable=False)
-    cuenta = Column(String(50), nullable=False)
+    # 🔗 RELACIÓN CON SEDE
+    sede_id = Column(Integer, ForeignKey("sedes.id", ondelete="CASCADE"), nullable=False)
 
-    # Fecha del consumo
+    # 📅 FECHA
     anio = Column(Integer, nullable=False)
     mes = Column(Integer, nullable=False)
 
-    # Consumo de energía
-    kw_consumidos = Column(Float, nullable=False)
+    # ⚡ CONSUMO
+    kw_consumidos = Column(Float, nullable=True, default=0)
 
-    # Valor pagado
-    valor_consumo_energia = Column(Float, nullable=False)
+    # 💰 VALOR
+    valor_consumo_energia = Column(Float, nullable=True, default=0)
 
-    # Indicador de cumplimiento
-    cumple = Column(Boolean, default=None)
+    # ✔ CUMPLE
+    cumple = Column(Boolean, default=True)
 
-    # Auditoría
+    # 🕒 AUDITORÍA
     created_at = Column(
         DateTime(timezone=True),
         server_default=func.now()
@@ -36,4 +35,12 @@ class ComparativoEnergia(Base):
         DateTime(timezone=True),
         server_default=func.now(),
         onupdate=func.now()
+    )
+
+    # 🔥 RELACIÓN ORM
+    sede = relationship("Sede")
+
+    # 🚨 CLAVE ÚNICA (LA MÁS IMPORTANTE)
+    __table_args__ = (
+        UniqueConstraint("sede_id", "anio", "mes", name="unique_energia"),
     )

@@ -8,13 +8,11 @@ router = APIRouter(prefix="/comparativoEnergia", tags=["Comparativo Energía"])
 
 
 # ==========================================================
-# CREAR
+# 🔥 CREAR / ACTUALIZAR (UPSERT)
 # ==========================================================
 @router.post("/")
 def guardar_comparativo_energia(
-    nombre: str = Body(...),
-    ubicacion: str = Body(...),
-    cuenta: str = Body(...),
+    sede_id: int = Body(...),
     anio: int = Body(...),
     mes: int = Body(...),
     kw_consumidos: float = Body(None),
@@ -24,17 +22,15 @@ def guardar_comparativo_energia(
 ):
     try:
 
-        # 🔥 BUSCAR SI YA EXISTE
+        # 🔥 BUSCAR SI YA EXISTE (CLAVE REAL)
         registro = db.query(ComparativoEnergia).filter(
-            ComparativoEnergia.nombre == nombre,
+            ComparativoEnergia.sede_id == sede_id,
             ComparativoEnergia.anio == anio,
             ComparativoEnergia.mes == mes
         ).first()
 
         if registro:
             # 🔥 UPDATE
-            registro.ubicacion = ubicacion
-            registro.cuenta = cuenta
             registro.kw_consumidos = kw_consumidos
             registro.valor_consumo_energia = valor_consumo_energia
             registro.cumple = cumple
@@ -47,9 +43,7 @@ def guardar_comparativo_energia(
         else:
             # 🔥 CREATE
             nuevo = ComparativoEnergia(
-                nombre=nombre,
-                ubicacion=ubicacion,
-                cuenta=cuenta,
+                sede_id=sede_id,
                 anio=anio,
                 mes=mes,
                 kw_consumidos=kw_consumidos,
@@ -72,63 +66,19 @@ def guardar_comparativo_energia(
 
 
 # ==========================================================
-# ACTUALIZAR (🔥 POR ID)
-# ==========================================================
-@router.put("/")
-def actualizar_comparativo_energia(
-    id: int = Body(...),
-    nombre: str = Body(...),
-    ubicacion: str = Body(...),
-    cuenta: str = Body(...),
-    anio: int = Body(...),
-    mes: int = Body(...),
-    kw_consumidos: float = Body(None),
-    valor_consumo_energia: float = Body(None),
-    cumple: bool = Body(True),
-    db: Session = Depends(get_db)
-):
-    try:
-        registro = db.query(ComparativoEnergia).filter(
-            ComparativoEnergia.id == id
-        ).first()
-
-        if not registro:
-            raise HTTPException(status_code=404, detail="Registro no encontrado")
-
-        registro.nombre = nombre
-        registro.ubicacion = ubicacion
-        registro.cuenta = cuenta
-        registro.kw_consumidos = kw_consumidos
-        registro.valor_consumo_energia = valor_consumo_energia
-        registro.cumple = cumple
-
-        db.commit()
-        db.refresh(registro)
-
-        return {"mensaje": "Registro actualizado", "data": registro}
-
-    except Exception as e:
-        db.rollback()
-        raise HTTPException(
-    status_code=500,
-    detail=f"Error interno: {str(e) or 'Error desconocido'}"
-)
-
-
-# ==========================================================
-# LISTAR
+# 🔥 LISTAR TODOS
 # ==========================================================
 @router.get("/")
 def listar_comparativos_energia(db: Session = Depends(get_db)):
     return db.query(ComparativoEnergia).order_by(
         ComparativoEnergia.anio.asc(),
         ComparativoEnergia.mes.asc(),
-        ComparativoEnergia.id.asc()
+        ComparativoEnergia.sede_id.asc()
     ).all()
 
 
 # ==========================================================
-# OBTENER POR ID
+# 🔥 OBTENER POR ID
 # ==========================================================
 @router.get("/{comparativo_id}")
 def obtener_comparativo_energia(comparativo_id: int, db: Session = Depends(get_db)):
@@ -138,13 +88,13 @@ def obtener_comparativo_energia(comparativo_id: int, db: Session = Depends(get_d
     ).first()
 
     if not registro:
-        raise HTTPException(status_code=404, detail="Comparativo no encontrado")
+        raise HTTPException(status_code=404, detail="Registro no encontrado")
 
     return registro
 
 
 # ==========================================================
-# ELIMINAR (🔥 POR ID)
+# 🔥 ELIMINAR POR ID
 # ==========================================================
 @router.delete("/{comparativo_id}")
 def eliminar_comparativo_energia(comparativo_id: int, db: Session = Depends(get_db)):
@@ -155,16 +105,39 @@ def eliminar_comparativo_energia(comparativo_id: int, db: Session = Depends(get_
         ).first()
 
         if not registro:
-            raise HTTPException(status_code=404, detail="Comparativo no encontrado")
+            raise HTTPException(status_code=404, detail="Registro no encontrado")
 
         db.delete(registro)
         db.commit()
 
-        return {"mensaje": "Registro eliminado", "id": comparativo_id}
+        return {"mensaje": "Eliminado correctamente"}
 
     except Exception as e:
         db.rollback()
         raise HTTPException(
-    status_code=500,
-    detail=f"Error interno: {str(e) or 'Error desconocido'}"
-)
+            status_code=500,
+            detail=f"Error interno: {str(e)}"
+        )
+
+
+# ==========================================================
+# 🔥 ELIMINAR POR SEDE (CLAVE PARA TU FRONT)
+# ==========================================================
+@router.delete("/por-sede/{sede_id}")
+def eliminar_por_sede(sede_id: int, db: Session = Depends(get_db)):
+
+    try:
+        db.query(ComparativoEnergia).filter(
+            ComparativoEnergia.sede_id == sede_id
+        ).delete()
+
+        db.commit()
+
+        return {"mensaje": "Registros eliminados por sede"}
+
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error eliminando por sede: {str(e)}"
+        )

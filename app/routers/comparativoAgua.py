@@ -1,20 +1,19 @@
 from fastapi import APIRouter, Depends, HTTPException, Body
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from app.database.session import get_db
 from app.models.comparativo_agua import ComparativoAgua
+from app.models.sede import Sede
 
 router = APIRouter(prefix="/comparativoAgua", tags=["Comparativo Agua"])
 
 
 # ==========================================================
-# CREAR
+# 🔥 UPSERT (CREAR O ACTUALIZAR)
 # ==========================================================
 @router.post("/")
-def guardar_comparativo_agua(
-    nombre: str = Body(...),
-    ubicacion: str = Body(...),
-    cuenta: str = Body(...),
+def guardar_comparativo(
+    sede_id: int = Body(...),
     anio: int = Body(...),
     mes: int = Body(...),
     m3_consumidos: float = Body(None),
@@ -24,17 +23,19 @@ def guardar_comparativo_agua(
 ):
     try:
 
-        # 🔥 BUSCAR SI YA EXISTE (CLAVE REAL)
+        # validar sede
+        sede = db.query(Sede).filter(Sede.id == sede_id).first()
+        if not sede:
+            raise HTTPException(status_code=404, detail="Sede no existe")
+
+        # 🔥 UPSERT REAL
         registro = db.query(ComparativoAgua).filter(
-            ComparativoAgua.nombre == nombre,
+            ComparativoAgua.sede_id == sede_id,
             ComparativoAgua.anio == anio,
             ComparativoAgua.mes == mes
         ).first()
 
         if registro:
-            # 🔥 UPDATE
-            registro.ubicacion = ubicacion
-            registro.cuenta = cuenta
             registro.m3_consumidos = m3_consumidos
             registro.valor_consumo_agua = valor_consumo_agua
             registro.cumple = cumple
@@ -45,11 +46,8 @@ def guardar_comparativo_agua(
             return {"mensaje": "Actualizado", "data": registro}
 
         else:
-            # 🔥 CREATE
             nuevo = ComparativoAgua(
-                nombre=nombre,
-                ubicacion=ubicacion,
-                cuenta=cuenta,
+                sede_id=sede_id,
                 anio=anio,
                 mes=mes,
                 m3_consumidos=m3_consumidos,
@@ -67,17 +65,42 @@ def guardar_comparativo_agua(
         db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
 
+
 # ==========================================================
-# ACTUALIZAR
+# 📊 LISTAR (CON DATOS DE SEDE)
 # ==========================================================
-@router.put("/")
-def actualizar_comparativo_agua(
-    id: int = Body(...),
-    nombre: str = Body(...),
-    ubicacion: str = Body(...),
-    cuenta: str = Body(...),
-    anio: int = Body(...),
-    mes: int = Body(...),
+@router.get("/")
+def listar_comparativo(db: Session = Depends(get_db)):
+
+    registros = db.query(ComparativoAgua).options(
+        joinedload(ComparativoAgua.sede)
+    ).all()
+
+    resultado = []
+
+    for r in registros:
+        resultado.append({
+            "id": r.id,
+            "sede_id": r.sede_id,
+            "nombre": r.sede.nombre,
+            "ubicacion": r.sede.ubicacion,
+            "cuenta": r.sede.cuenta,
+            "anio": r.anio,
+            "mes": r.mes,
+            "m3_consumidos": r.m3_consumidos,
+            "valor_consumo_agua": r.valor_consumo_agua,
+            "cumple": r.cumple
+        })
+
+    return resultado
+
+
+# ==========================================================
+# ✏️ ACTUALIZAR (POR ID)
+# ==========================================================
+@router.put("/{id}")
+def actualizar(
+    id: int,
     m3_consumidos: float = Body(None),
     valor_consumo_agua: float = Body(None),
     cumple: bool = Body(True),
@@ -88,11 +111,8 @@ def actualizar_comparativo_agua(
     ).first()
 
     if not registro:
-        raise HTTPException(status_code=404, detail="Registro no encontrado")
+        raise HTTPException(status_code=404, detail="No encontrado")
 
-    registro.nombre = nombre
-    registro.ubicacion = ubicacion
-    registro.cuenta = cuenta
     registro.m3_consumidos = m3_consumidos
     registro.valor_consumo_agua = valor_consumo_agua
     registro.cumple = cumple
@@ -101,89 +121,94 @@ def actualizar_comparativo_agua(
     db.refresh(registro)
 
     return {"mensaje": "Actualizado"}
-# ==========================================================
-# LISTAR
-# ==========================================================
-@router.get("/")
-def listar_comparativos_agua(db: Session = Depends(get_db)):
-    return db.query(ComparativoAgua).order_by(
-        ComparativoAgua.anio.asc(),
-        ComparativoAgua.mes.asc(),
-        ComparativoAgua.id.asc()
-    ).all()
 
 
 # ==========================================================
-# ELIMINAR (🔥 ADAPTADO A TU FRONTEND)
+# 🗑️ ELIMINAR POR ID
 # ==========================================================
-@router.delete("/")
-def eliminar_comparativo_agua(
-    nombre: str = Body(...),
-    anio: int = Body(...),
-    mes: int = Body(...),
-    db: Session = Depends(get_db)
-):
-    try:
-        registro = db.query(ComparativoAgua).filter(
-            ComparativoAgua.nombre == nombre,
-            ComparativoAgua.anio == anio,
-            ComparativoAgua.mes == mes
-        ).first()
-
-        if not registro:
-            raise HTTPException(status_code=404, detail="Registro no encontrado")
-
-        db.delete(registro)
-        db.commit()
-
-        return {"mensaje": "Registro eliminado"}
-
-    except Exception as e:
-        db.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-# ==========================================================
-# OBTENER POR ID (opcional)
-# ==========================================================
-@router.get("/{comparativo_id}")
-def obtener_comparativo_agua(comparativo_id: int, db: Session = Depends(get_db)):
+@router.delete("/{id}")
+def eliminar(id: int, db: Session = Depends(get_db)):
 
     registro = db.query(ComparativoAgua).filter(
+        ComparativoAgua.id == id
+    ).first()
+
+    if not registro:
+        raise HTTPException(status_code=404, detail="No encontrado")
+
+    db.delete(registro)
+    db.commit()
+
+    return {"mensaje": "Eliminado correctamente"}
+
+
+# ==========================================================
+# 🔍 OBTENER POR ID
+# ==========================================================
+@router.get("/{comparativo_id}")
+def obtener(comparativo_id: int, db: Session = Depends(get_db)):
+
+    registro = db.query(ComparativoAgua).options(
+        joinedload(ComparativoAgua.sede)
+    ).filter(
         ComparativoAgua.id == comparativo_id
     ).first()
 
     if not registro:
-        raise HTTPException(status_code=404, detail="Comparativo no encontrado")
+        raise HTTPException(status_code=404, detail="No encontrado")
 
-    return registro
+    return {
+        "id": registro.id,
+        "sede_id": registro.sede_id,
+        "nombre": registro.sede.nombre,
+        "ubicacion": registro.sede.ubicacion,
+        "cuenta": registro.sede.cuenta,
+        "anio": registro.anio,
+        "mes": registro.mes,
+        "m3_consumidos": registro.m3_consumidos,
+        "valor_consumo_agua": registro.valor_consumo_agua,
+        "cumple": registro.cumple
+    }
 
+
+# ==========================================================
+# 🚀 GENERAR AÑO COMPLETO (PRO)
+# ==========================================================
 @router.post("/generar-anio")
 def generar_anio(anio: int, db: Session = Depends(get_db)):
 
-    sedes_base = db.query(ComparativoAgua).filter(
-        ComparativoAgua.anio == anio - 1,
-        ComparativoAgua.mes == 1
-    ).all()
+    try:
 
-    for sede in sedes_base:
-        for mes in range(1, 13):
+        # 🔥 traer TODAS las sedes
+        sedes = db.query(Sede).all()
 
-            existe = db.query(ComparativoAgua).filter(
-                ComparativoAgua.nombre == sede.nombre,
-                ComparativoAgua.anio == anio,
-                ComparativoAgua.mes == mes
-            ).first()
+        if not sedes:
+            raise HTTPException(status_code=400, detail="No hay sedes creadas")
 
-            if not existe:
-                nuevo = ComparativoAgua(
-                    nombre=sede.nombre,
-                    ubicacion=sede.ubicacion,
-                    cuenta=sede.cuenta,
-                    anio=anio,
-                    mes=mes
-                )
-                db.add(nuevo)
+        for sede in sedes:
+            for mes in range(1, 13):
 
-    db.commit()
-    return {"mensaje": "Año generado"}
+                existe = db.query(ComparativoAgua).filter(
+                    ComparativoAgua.sede_id == sede.id,
+                    ComparativoAgua.anio == anio,
+                    ComparativoAgua.mes == mes
+                ).first()
+
+                if not existe:
+                    nuevo = ComparativoAgua(
+                        sede_id=sede.id,
+                        anio=anio,
+                        mes=mes,
+                        m3_consumidos=0,
+                        valor_consumo_agua=0,
+                        cumple=True
+                    )
+                    db.add(nuevo)
+
+        db.commit()
+
+        return {"mensaje": f"Año {anio} generado correctamente"}
+
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
