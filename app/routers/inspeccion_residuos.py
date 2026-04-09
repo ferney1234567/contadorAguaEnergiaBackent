@@ -33,7 +33,7 @@ def crear_inspeccion(
 ):
     fecha = data.get("fecha")
     responsable = data.get("responsable")
-    area_id = data.get("area_id")  # 🔥 CAMBIO
+    area_id = data.get("area_id")
 
     if not all([fecha, responsable, area_id]):
         raise HTTPException(
@@ -41,7 +41,24 @@ def crear_inspeccion(
             detail="Faltan datos obligatorios"
         )
 
-    # 🔥 VALIDAR QUE EL AREA EXISTE
+    # ======================================================
+    # 🔥 VALIDAR DUPLICADO (AQUÍ VA)
+    # ======================================================
+    registro_existente = db.query(InspeccionResiduos).filter(
+        InspeccionResiduos.fecha == fecha,
+        InspeccionResiduos.responsable == responsable,
+        InspeccionResiduos.area_id == area_id
+    ).first()
+
+    if registro_existente:
+        raise HTTPException(
+            status_code=400,
+            detail="Ya existe un registro para esta área, responsable y fecha"
+        )
+
+    # ======================================================
+    # 🔥 VALIDAR ÁREA
+    # ======================================================
     area = db.query(Area).filter(Area.id == area_id).first()
 
     if not area:
@@ -55,7 +72,7 @@ def crear_inspeccion(
     nueva = InspeccionResiduos(
         fecha=fecha,
         responsable=responsable,
-        area_id=area_id,  # 🔥 CAMBIO
+        area_id=area_id,
 
         reciclables_c=data.get("reciclables_c", 0),
         reciclables_nc=data.get("reciclables_nc", 0),
@@ -82,7 +99,6 @@ def crear_inspeccion(
         "id": nueva.id,
         "total": nueva.total
     }
-
 
 # ======================================================
 # 📄 LISTAR INSPECCIONES
