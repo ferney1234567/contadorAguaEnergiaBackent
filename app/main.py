@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 
 from app.database.session import engine, Base
-from app.routers import agua, energia, inspeccion_sanitario, lecturas, metas, comparativoAgua, comparativoEnergia, inspeccion_residuos,areas, inspeccion_energia, areas_sanitaria, areas_resmas,resmas, sedes,tonners,areas_tonners
+from app.routers import agua, energia, inspeccion_sanitario, lecturas, metas, comparativoAgua, comparativoEnergia, inspeccion_residuos,areas, inspeccion_energia, areas_sanitaria, areas_resmas,resmas, sedes,tonners,areas_tonners,sedesEnergia
 
 
 app = FastAPI(
@@ -47,6 +47,8 @@ app.include_router(resmas.router)
 app.include_router(sedes.router)
 app.include_router(tonners.router)
 app.include_router(areas_tonners.router)
+app.include_router(sedesEnergia.router)
+
 
 
 @app.get("/", tags=["Root"])

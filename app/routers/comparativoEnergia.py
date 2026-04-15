@@ -12,7 +12,7 @@ router = APIRouter(prefix="/comparativoEnergia", tags=["Comparativo Energía"])
 # ==========================================================
 @router.post("/")
 def guardar_comparativo_energia(
-    sede_id: int = Body(...),
+    sede_energia: int = Body(...),  # 🔥 CAMBIO
     anio: int = Body(...),
     mes: int = Body(...),
     kw_consumidos: float = Body(None),
@@ -22,15 +22,14 @@ def guardar_comparativo_energia(
 ):
     try:
 
-        # 🔥 BUSCAR SI YA EXISTE (CLAVE REAL)
         registro = db.query(ComparativoEnergia).filter(
-            ComparativoEnergia.sede_id == sede_id,
+            ComparativoEnergia.sede_energia == sede_energia,  # 🔥 CAMBIO
             ComparativoEnergia.anio == anio,
             ComparativoEnergia.mes == mes
         ).first()
 
         if registro:
-            # 🔥 UPDATE
+            # UPDATE
             registro.kw_consumidos = kw_consumidos
             registro.valor_consumo_energia = valor_consumo_energia
             registro.cumple = cumple
@@ -41,9 +40,9 @@ def guardar_comparativo_energia(
             return {"mensaje": "Actualizado"}
 
         else:
-            # 🔥 CREATE
+            # CREATE
             nuevo = ComparativoEnergia(
-                sede_id=sede_id,
+                sede_energia=sede_energia,  # 🔥 CAMBIO
                 anio=anio,
                 mes=mes,
                 kw_consumidos=kw_consumidos,
@@ -73,7 +72,7 @@ def listar_comparativos_energia(db: Session = Depends(get_db)):
     return db.query(ComparativoEnergia).order_by(
         ComparativoEnergia.anio.asc(),
         ComparativoEnergia.mes.asc(),
-        ComparativoEnergia.sede_id.asc()
+        ComparativoEnergia.sede_energia.asc()  # 🔥 CAMBIO
     ).all()
 
 
@@ -121,14 +120,14 @@ def eliminar_comparativo_energia(comparativo_id: int, db: Session = Depends(get_
 
 
 # ==========================================================
-# 🔥 ELIMINAR POR SEDE (CLAVE PARA TU FRONT)
+# 🔥 ELIMINAR POR SEDE
 # ==========================================================
-@router.delete("/por-sede/{sede_id}")
-def eliminar_por_sede(sede_id: int, db: Session = Depends(get_db)):
+@router.delete("/por-sede/{sede_energia}")
+def eliminar_por_sede(sede_energia: int, db: Session = Depends(get_db)):
 
     try:
         db.query(ComparativoEnergia).filter(
-            ComparativoEnergia.sede_id == sede_id
+            ComparativoEnergia.sede_energia == sede_energia  # 🔥 CAMBIO
         ).delete()
 
         db.commit()

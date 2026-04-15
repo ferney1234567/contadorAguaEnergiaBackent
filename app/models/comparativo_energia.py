@@ -9,8 +9,12 @@ class ComparativoEnergia(Base):
 
     id = Column(Integer, primary_key=True, index=True)
 
-    # 🔗 RELACIÓN CON SEDE
-    sede_id = Column(Integer, ForeignKey("sedes.id", ondelete="CASCADE"), nullable=False)
+    # 🔗 RELACIÓN CON SEDE (CORREGIDO)
+    sede_energia = Column(
+        Integer,
+        ForeignKey("sedes_energia.id", ondelete="CASCADE"),
+        nullable=False
+    )
 
     # 📅 FECHA
     anio = Column(Integer, nullable=False)
@@ -37,10 +41,10 @@ class ComparativoEnergia(Base):
         onupdate=func.now()
     )
 
-    # 🔥 RELACIÓN ORM
-    sede = relationship("Sede")
+    # 🔥 RELACIÓN ORM (CORREGIDO)
+    sede = relationship("SedeEnergia")
 
-    # 🚨 CLAVE ÚNICA (LA MÁS IMPORTANTE)
+    # 🚨 CLAVE ÚNICA (CORREGIDA)
     __table_args__ = (
-        UniqueConstraint("sede_id", "anio", "mes", name="unique_energia"),
+        UniqueConstraint("sede_energia", "anio", "mes", name="unique_energia"),
     )
