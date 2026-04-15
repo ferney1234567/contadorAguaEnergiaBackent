@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Body
 from sqlalchemy.orm import Session
 from datetime import datetime
+from sqlalchemy import func
 
 from app.database.session import get_db
 from app.models.inspeccion_residuos import InspeccionResiduos
@@ -151,18 +152,22 @@ def listar_inspecciones(db: Session = Depends(get_db)):
 # ======================================================
 # ❌ DELETE
 # ======================================================
-@router.delete("/{id}")
-def eliminar_inspeccion(id: int, db: Session = Depends(get_db)):
-    registro = db.query(InspeccionResiduos).filter(
-        InspeccionResiduos.id == id
-    ).first()
+@router.delete("/")
+def eliminar_inspeccion(data: dict = Body(...), db: Session = Depends(get_db)):
+    responsable = data.get("responsable")
+    fecha = data.get("fecha")
 
-    if not registro:
-        raise HTTPException(404, "No existe la inspección")
+    if not responsable or not fecha:
+        raise HTTPException(400, "Faltan datos")
 
-    db.delete(registro)
+    registros = db.query(InspeccionResiduos).filter(
+        InspeccionResiduos.responsable == responsable,
+        func.date(InspeccionResiduos.fecha) == fecha
+    ).all()
+
+    for r in registros:
+        db.delete(r)
+
     db.commit()
 
-    return {
-        "mensaje": "Eliminado correctamente"
-    }
+    return {"mensaje": "Eliminado correctamente"}

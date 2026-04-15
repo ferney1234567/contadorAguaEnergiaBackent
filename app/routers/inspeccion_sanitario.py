@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 from app.database.session import get_db
 from app.models.inspeccion_agua import InspeccionSanitaria
 from app.models.area_sanitaria import AreaSanitaria
+from sqlalchemy import func
 
 router = APIRouter(
     prefix="/inspecciones-sanitarias",
@@ -163,18 +164,25 @@ def listar_inspecciones(db: Session = Depends(get_db)):
 # ======================================================
 # ❌ DELETE
 # ======================================================
-@router.delete("/{id}")
-def eliminar_inspeccion(id: int, db: Session = Depends(get_db)):
-    registro = db.query(InspeccionSanitaria).filter(
-        InspeccionSanitaria.id == id
-    ).first()
+@router.delete("/")
+def eliminar_inspeccion_sanitaria(data: dict = Body(...), db: Session = Depends(get_db)):
+    responsable = data.get("responsable")
+    fecha = data.get("fecha")
 
-    if not registro:
-        raise HTTPException(404, "No existe la inspección")
+    if not responsable or not fecha:
+        raise HTTPException(400, "Faltan datos")
 
-    db.delete(registro)
+    registros = db.query(InspeccionSanitaria).filter(
+        InspeccionSanitaria.responsable == responsable,
+        func.date(InspeccionSanitaria.fecha) == fecha
+    ).all()
+
+    if not registros:
+        raise HTTPException(404, "No se encontraron registros")
+
+    for r in registros:
+        db.delete(r)
+
     db.commit()
 
-    return {
-        "mensaje": "Eliminado correctamente"
-    }
+    return {"mensaje": "Inspección eliminada correctamente"}
