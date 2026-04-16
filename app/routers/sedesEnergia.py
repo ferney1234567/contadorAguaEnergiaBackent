@@ -91,7 +91,7 @@ def eliminar_sede(id: int, db: Session = Depends(get_db)):
 
         # 🔥 BORRAR PRIMERO LOS DATOS RELACIONADOS
         registros = db.query(ComparativoEnergia).filter(
-            ComparativoEnergia.sede_id == id
+           ComparativoEnergia.sede_energia == id
         ).all()
 
         for r in registros:

@@ -122,13 +122,15 @@ def eliminar_comparativo_energia(comparativo_id: int, db: Session = Depends(get_
 # ==========================================================
 # 🔥 ELIMINAR POR SEDE
 # ==========================================================
-@router.delete("/por-sede/{sede_energia}")
+@router.delete("/por-sedes_energia/{sede_energia}")
 def eliminar_por_sede(sede_energia: int, db: Session = Depends(get_db)):
-
     try:
-        db.query(ComparativoEnergia).filter(
-            ComparativoEnergia.sede_energia == sede_energia  # 🔥 CAMBIO
-        ).delete()
+        registros = db.query(ComparativoEnergia).filter(
+            ComparativoEnergia.sede_energia == sede_energia
+        ).all()
+
+        for r in registros:
+            db.delete(r)
 
         db.commit()
 

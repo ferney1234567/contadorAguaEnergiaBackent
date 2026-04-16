@@ -2,8 +2,9 @@ from fastapi import APIRouter, Depends, HTTPException, Body
 from sqlalchemy.orm import Session
 from app.database.session import get_db
 from app.models.inspeccion_energia import InspeccionEnergia
-from app.models.area import Area
+from app.models.AreaEnergia import AreaEnergia
 from sqlalchemy import func
+from datetime import datetime
 
 router = APIRouter(
     prefix="/inspecciones-energia",
@@ -26,7 +27,16 @@ def calcular_total(data):
     )
 
 # ======================================================
-# 🔥 UPSERT (IGUAL A RECICLAJE)
+# 🧠 CALCULAR SEMANA
+# ======================================================
+def obtener_semana(fecha):
+    d = datetime.fromisoformat(str(fecha))
+    inicio = datetime(d.year, 1, 1)
+    dias = (d - inicio).days
+    return int((dias + inicio.weekday() + 1) / 7) + 1
+
+# ======================================================
+# 🔥 UPSERT (SEMANAL)
 # ======================================================
 @router.post("/")
 def upsert_inspeccion(
@@ -40,19 +50,25 @@ def upsert_inspeccion(
     if not all([fecha, responsable, area_id]):
         raise HTTPException(400, "Faltan datos obligatorios")
 
-    # 🔥 VALIDAR AREA
-    area = db.query(Area).filter(Area.id == area_id).first()
+    # 🔥 VALIDAR AREA ENERGIA
+    area = db.query(AreaEnergia).filter(AreaEnergia.id == area_id).first()
     if not area:
-        raise HTTPException(404, "El área no existe")
+        raise HTTPException(404, "El área de energía no existe")
 
-    # 🔥 BUSCAR SI YA EXISTE (CLAVE REAL)
+    # 🔥 CALCULAR AÑO Y SEMANA
+    fecha_dt = datetime.fromisoformat(str(fecha))
+    anio = fecha_dt.year
+    semana = obtener_semana(fecha)
+
+    total = calcular_total(data)
+
+    # 🔥 BUSCAR POR SEMANA (NO POR FECHA)
     registro = db.query(InspeccionEnergia).filter(
-        InspeccionEnergia.fecha == fecha,
+        InspeccionEnergia.anio == anio,
+        InspeccionEnergia.semana == semana,
         InspeccionEnergia.responsable == responsable,
         InspeccionEnergia.area_id == area_id
     ).first()
-
-    total = calcular_total(data)
 
     # ================= UPDATE =================
     if registro:
@@ -82,7 +98,7 @@ def upsert_inspeccion(
 
     # ================= CREATE =================
     nueva = InspeccionEnergia(
-        fecha=fecha,
+        fecha=fecha_dt,
         responsable=responsable,
         area_id=area_id,
 
@@ -99,7 +115,10 @@ def upsert_inspeccion(
         aires_nc=data.get("aires_nc", 0),
 
         observacion=data.get("observacion"),
-        total=total
+        total=total,
+
+        anio=anio,
+        semana=semana
     )
 
     db.add(nueva)
@@ -127,6 +146,9 @@ def listar_inspecciones(db: Session = Depends(get_db)):
             "area_id": r.area_id,
             "area": r.area.nombre if r.area else None,
 
+            "anio": r.anio,
+            "semana": r.semana,
+
             "bombillas_c": r.bombillas_c,
             "bombillas_nc": r.bombillas_nc,
 
@@ -146,7 +168,7 @@ def listar_inspecciones(db: Session = Depends(get_db)):
     ]
 
 # ======================================================
-# ❌ DELETE
+# ❌ DELETE POR SEMANA
 # ======================================================
 @router.delete("/")
 def eliminar_inspeccion_energia(data: dict = Body(...), db: Session = Depends(get_db)):
@@ -156,9 +178,14 @@ def eliminar_inspeccion_energia(data: dict = Body(...), db: Session = Depends(ge
     if not responsable or not fecha:
         raise HTTPException(400, "Faltan datos")
 
+    fecha_dt = datetime.fromisoformat(str(fecha))
+    anio = fecha_dt.year
+    semana = obtener_semana(fecha)
+
     registros = db.query(InspeccionEnergia).filter(
         InspeccionEnergia.responsable == responsable,
-        func.date(InspeccionEnergia.fecha) == fecha
+        InspeccionEnergia.anio == anio,
+        InspeccionEnergia.semana == semana
     ).all()
 
     if not registros:
@@ -169,15 +196,4 @@ def eliminar_inspeccion_energia(data: dict = Body(...), db: Session = Depends(ge
 
     db.commit()
 
-    return {"mensaje": "Inspección eliminada correctamente"}
-    registro = db.query(InspeccionEnergia).filter(
-        InspeccionEnergia.id == id
-    ).first()
-
-    if not registro:
-        raise HTTPException(404, "No existe la inspección")
-
-    db.delete(registro)
-    db.commit()
-
-    return {"mensaje": "Eliminado correctamente"}
+    return {"mensaje": "Inspección semanal eliminada correctamente"}

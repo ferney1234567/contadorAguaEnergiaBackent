@@ -9,13 +9,13 @@ class InspeccionEnergia(Base):
 
     id = Column(Integer, primary_key=True, index=True)
 
-    # Datos principales
+    # 📅 Datos principales
     fecha = Column(DateTime, nullable=False)
     responsable = Column(String(150), nullable=False)
 
-    # 🔥 RELACIÓN CON ÁREA
-    area_id = Column(Integer, ForeignKey("areas.id"), nullable=False)
-    area = relationship("Area")
+    # 🔥 RELACIÓN CORRECTA (CAMBIO CLAVE)
+    area_id = Column(Integer, ForeignKey("areas_energia.id"), nullable=False)
+    area = relationship("AreaEnergia")
 
     # ⚡ CAMPOS DE ENERGÍA
 
@@ -27,7 +27,7 @@ class InspeccionEnergia(Base):
     reflectores_c = Column(Integer, default=0)
     reflectores_nc = Column(Integer, default=0)
 
-    # Lámparas de piso
+    # Lámparas
     lamparas_c = Column(Integer, default=0)
     lamparas_nc = Column(Integer, default=0)
 
@@ -35,14 +35,24 @@ class InspeccionEnergia(Base):
     aires_c = Column(Integer, default=0)
     aires_nc = Column(Integer, default=0)
 
-    # Observaciones
+    # 📝 Observaciones
     observacion = Column(String(500), nullable=True)
 
-    # Total
+    # 🔢 Total
     total = Column(Integer, default=0)
 
-    # Auditoría
+    # 🔥 SEMANAL (CLAVE PARA TU SISTEMA)
+    anio = Column(Integer, nullable=False)
+    semana = Column(Integer, nullable=False)
+
+    # 🕒 Auditoría
     created_at = Column(
         DateTime(timezone=True),
         server_default=func.now()
+    )
+
+    updated_at = Column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now()
     )
