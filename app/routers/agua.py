@@ -10,10 +10,10 @@ router = APIRouter(prefix="/agua", tags=["Agua"])
 
 
 # ==========================================================
-# CREAR / ACTUALIZAR CON INSERT ON DUPLICATE KEY
+# CREAR MÚLTIPLES REGISTROS POR FECHA
 # ==========================================================
 @router.post("/")
-def crear_o_actualizar_consumo_agua(
+def crear_consumo_agua(
     fecha: date = Body(...),
     bodega1: int = Body(...),
     bodega2: int = Body(...),
@@ -22,10 +22,9 @@ def crear_o_actualizar_consumo_agua(
     db: Session = Depends(get_db)
 ):
     """
-    ✔ 1 solo registro por fecha (usando UNIQUE index)
-    ✔ Si bodega es 0 → no sobreescribe valor existente
-    ✔ Si ambas bodegas son 0 → elimina el registro
-    ✔ Usa INSERT ... ON DUPLICATE KEY UPDATE
+    ✔ Permite múltiples registros por misma fecha
+    ✔ Crea nuevo registro siempre (sin duplicados)
+    ✔ Si ambas bodegas son 0 → no crea registro
     """
 
     # Normalizar valores (evita None)
@@ -34,57 +33,24 @@ def crear_o_actualizar_consumo_agua(
     total_bodega1 = total_bodega1 or 0
     total_bodega2 = total_bodega2 or 0
 
-    # ❌ CASO: BORRAR TODO (ambas bodegas en 0)
+    # ❌ CASO: No crear si ambas bodegas son 0
     if bodega1 == 0 and bodega2 == 0:
-        registro = db.query(ConsumoAgua).filter(ConsumoAgua.fecha == fecha).first()
-        if registro:
-            db.delete(registro)
-            db.commit()
-            return {"deleted": True, "fecha": fecha}
-        return {"deleted": False, "mensaje": "No existía registro para eliminar"}
+        return {"created": False, "mensaje": "No se crea registro con ambas bodegas en 0"}
 
-    # 🔧 QUERY CON INSERT ... ON DUPLICATE KEY UPDATE
-    query = text("""
-        INSERT INTO consumo_agua (fecha, bodega1, bodega2, total_bodega1, total_bodega2, sumatoria, created_at, updated_at)
-        VALUES (:fecha, :bodega1, :bodega2, :total_bodega1, :total_bodega2, :sumatoria, NOW(), NOW())
-        ON DUPLICATE KEY UPDATE
-            bodega1 = CASE 
-                WHEN VALUES(bodega1) != 0 AND bodega1 = 0 THEN VALUES(bodega1)
-                WHEN VALUES(bodega1) != 0 AND bodega1 != 0 THEN VALUES(bodega1)
-                ELSE bodega1
-            END,
-            bodega2 = CASE 
-                WHEN VALUES(bodega2) != 0 AND bodega2 = 0 THEN VALUES(bodega2)
-                WHEN VALUES(bodega2) != 0 AND bodega2 != 0 THEN VALUES(bodega2)
-                ELSE bodega2
-            END,
-            total_bodega1 = CASE 
-                WHEN VALUES(total_bodega1) != 0 THEN VALUES(total_bodega1)
-                ELSE total_bodega1
-            END,
-            total_bodega2 = CASE 
-                WHEN VALUES(total_bodega2) != 0 THEN VALUES(total_bodega2)
-                ELSE total_bodega2
-            END,
-            sumatoria = VALUES(total_bodega1) + VALUES(total_bodega2),
-            updated_at = NOW()
-    """)
-
-    params = {
-        "fecha": fecha,
-        "bodega1": bodega1,
-        "bodega2": bodega2,
-        "total_bodega1": total_bodega1,
-        "total_bodega2": total_bodega2,
-        "sumatoria": total_bodega1 + total_bodega2
-    }
-
-    db.execute(query, params)
+    # ➕ CREAR NUEVO REGISTRO (siempre)
+    nuevo_registro = ConsumoAgua(
+        fecha=fecha,
+        bodega1=bodega1,
+        bodega2=bodega2,
+        total_bodega1=total_bodega1,
+        total_bodega2=total_bodega2,
+        sumatoria=total_bodega1 + total_bodega2,
+    )
+    db.add(nuevo_registro)
     db.commit()
+    db.refresh(nuevo_registro)
 
-    # Retornar el registro actualizado
-    registro = db.query(ConsumoAgua).filter(ConsumoAgua.fecha == fecha).first()
-    return registro
+    return nuevo_registro
 
 
 # ==========================================================
