@@ -22,10 +22,14 @@ def crear_consumo_agua(
     db: Session = Depends(get_db)
 ):
     """
-    ✔ Permite múltiples registros por misma fecha
-    ✔ Crea nuevo registro siempre (sin duplicados)
-    ✔ Si ambas bodegas son 0 → no crea registro
+    ✔ Si ya existe un registro para la fecha, lo actualiza (evita duplicados)
+    ✔ Si no existe, lo crea
+    ✔ Bloquea registros en domingos (weekday 6)
     """
+
+    # 1. Bloquear domingos
+    if fecha.weekday() == 6:
+        raise HTTPException(status_code=400, detail="No se permiten registros en domingos")
 
     # Normalizar valores (evita None)
     bodega1 = bodega1 or 0
@@ -33,11 +37,22 @@ def crear_consumo_agua(
     total_bodega1 = total_bodega1 or 0
     total_bodega2 = total_bodega2 or 0
 
-    # ❌ CASO: No crear si ambas bodegas son 0
-    if bodega1 == 0 and bodega2 == 0:
-        return {"created": False, "mensaje": "No se crea registro con ambas bodegas en 0"}
+    # Buscar registro existente
+    registro_existente = db.query(ConsumoAgua).filter(ConsumoAgua.fecha == fecha).first()
 
-    # ➕ CREAR NUEVO REGISTRO (siempre)
+    if registro_existente:
+        # ACTUALIZAR REGISTRO EXISTENTE
+        registro_existente.bodega1 = bodega1
+        registro_existente.bodega2 = bodega2
+        registro_existente.total_bodega1 = total_bodega1
+        registro_existente.total_bodega2 = total_bodega2
+        registro_existente.sumatoria = total_bodega1 + total_bodega2
+        
+        db.commit()
+        db.refresh(registro_existente)
+        return registro_existente
+
+    # ➕ CREAR NUEVO REGISTRO
     nuevo_registro = ConsumoAgua(
         fecha=fecha,
         bodega1=bodega1,
@@ -51,6 +66,7 @@ def crear_consumo_agua(
     db.refresh(nuevo_registro)
 
     return nuevo_registro
+
 
 
 # ==========================================================
